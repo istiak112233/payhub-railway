@@ -1,0 +1,107 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PayHub</title>
+<style>
+:root{--bg:#0b1220;--card:#121a2b;--line:#243049;--text:#e8eef8;--muted:#93a4c2;--blue:#3b82f6}
+*{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui;background:var(--bg);color:var(--text)}
+.wrap{max-width:1100px;margin:0 auto;padding:20px}
+.top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:16px}
+.bal{font-size:34px;font-weight:800}
+input,button,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0b1220;color:#fff;margin:6px 0}
+button{background:var(--blue);border:0;font-weight:700;cursor:pointer}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{border-bottom:1px solid var(--line);padding:8px;text-align:left}
+code{background:#0b1220;padding:2px 6px;border-radius:6px}
+a{color:#93c5fd}.muted{color:var(--muted);font-size:13px}.bad{color:#f87171}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><h1>PayHub</h1><div class="muted">{{ email }}</div></div>
+    <div><a href="/docs-page">API Docs</a> · <a href="/logout">Logout</a></div>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <h2>Live Binance balance</h2>
+      {% if bal_error %}<p class="bad">{{ bal_error }}</p>{% endif %}
+      <div class="bal">{{ usdt }} USDT</div>
+      <p class="muted">UID: {{ uid or 'not set' }}</p>
+      <table>
+        <tr><th>Asset</th><th>Wallet</th><th>Total</th></tr>
+        {% for i in items %}
+        <tr><td>{{ i.asset }}</td><td>{{ i.wallet }}</td><td>{{ '%.6f'|format(i.total) }}</td></tr>
+        {% endfor %}
+      </table>
+      <form method="get"><button>Refresh</button></form>
+    </div>
+    <div class="card">
+      <h2>Your Binance keys</h2>
+      <form method="post" action="/settings">
+        <input name="binance_api_key" placeholder="API Key" value="{{ api_key }}">
+        <input name="binance_api_secret" type="password" placeholder="API Secret">
+        <input name="binance_uid" placeholder="Pay ID / UID" value="{{ uid }}">
+        <input name="binance_name" placeholder="Binance Name" value="{{ bname }}">
+        <button>Save</button>
+      </form>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Bot messages (Telegram)</h2>
+    <p class="muted">Use placeholders: {pay_id} {binance_name} {amount} {currency} {order_id} {code} {balance} {minutes}</p>
+    <form method="post" action="/messages">
+      <p>Deposit screen</p>
+      <textarea name="deposit_text" rows="8">{{ msgs.deposit_text }}</textarea>
+      <p>Success</p>
+      <textarea name="success_text" rows="5">{{ msgs.success_text }}</textarea>
+      <p>Fail — Order ID not found</p>
+      <textarea name="fail_not_found" rows="7">{{ msgs.fail_not_found }}</textarea>
+      <p>Fail — amount mismatch</p>
+      <textarea name="fail_mismatch" rows="6">{{ msgs.fail_mismatch }}</textarea>
+      <button>Save messages</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Bot API keys + webhook</h2>
+    <form method="post" action="/bots" class="row">
+      <input name="name" placeholder="Bot name">
+      <input name="webhook_url" placeholder="https://your-bot/webhook">
+      <button>Create key</button>
+    </form>
+    <table>
+      <tr><th>Name</th><th>API key</th><th>Webhook secret</th><th>URL</th></tr>
+      {% for b in bots %}
+      <tr>
+        <td>{{ b.name }}</td>
+        <td><code>{{ b.api_key }}</code></td>
+        <td><code>{{ b.webhook_secret }}</code></td>
+        <td>
+          <form method="post" action="/bots/{{ b.id }}/webhook" style="display:flex;gap:6px;min-width:280px">
+            <input name="webhook_url" value="{{ b.webhook_url }}" placeholder="https://your-railway-domain/webhook" style="margin:0">
+            <button style="width:auto;margin:0">Save</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  <div class="card">
+    <h2>Invoices</h2>
+    <table>
+      <tr><th>ID</th><th>User</th><th>Amount</th><th>Status</th><th>TX</th></tr>
+      {% for i in invoices %}
+      <tr>
+        <td><code>{{ i.invoice_id }}</code></td>
+        <td>{{ i.telegram_id }}</td>
+        <td>{{ i.amount }} {{ i.currency }}</td>
+        <td>{{ i.status }}</td>
+        <td>{{ i.txid or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+</body></html>

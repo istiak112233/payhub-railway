@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PayHub</title>
+<style>
+body{font-family:Inter,system-ui,sans-serif;background:#0b1220;color:#e8eef8;display:grid;place-items:center;min-height:100vh;margin:0}
+form{background:#121a2b;padding:28px;border-radius:16px;width:min(92vw,380px);border:1px solid #243049}
+input,button{width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:1px solid #2c3b57;background:#0b1220;color:#fff;margin-top:8px}
+button{background:#3b82f6;border:0;font-weight:700;cursor:pointer}
+h1{margin:0 0 8px} p,a{color:#93a4c2} .err{color:#f87171}
+</style></head>
+<body>
+<form method="post" action="{{ action }}">
+  <h1>{{ title }}</h1>
+  <p>{{ subtitle }}</p>
+  <input name="email" type="email" placeholder="Gmail address" required>
+  <input name="password" type="password" placeholder="Password" required>
+  <button>{{ button }}</button>
+  {% if error %}<p class="err">{{ error }}</p>{% endif %}
+  <p><a href="{{ other_href }}">{{ other_text }}</a> · <a href="/admin/login">Admin</a></p>
+</form>
+</body></html>

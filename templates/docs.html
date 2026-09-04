@@ -1,0 +1,104 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PayHub API Docs</title>
+<style>
+body{font-family:Inter,system-ui,sans-serif;background:#0b1220;color:#e8eef8;margin:0}
+.wrap{max-width:860px;margin:0 auto;padding:24px}
+a{color:#93c5fd} code,pre{background:#121a2b;padding:12px;border-radius:10px;display:block;overflow:auto;white-space:pre-wrap}
+h1,h2{margin-top:28px}
+</style></head>
+<body>
+<div class="wrap">
+  <p><a href="/">← Dashboard</a></p>
+  <h1>PayHub API Documentation</h1>
+  <p>Bot .env e shudhu 3 ta jinish thakbe:</p>
+<pre>PAYMENT_BASE_URL={{ base }}
+PAYMENT_API_KEY=pk_live_xxxx
+PAYMENT_WEBHOOK_SECRET=whsec_xxxx</pre>
+
+  <h2>1. Payment flow</h2>
+  <ol>
+    <li>Customer bot e amount dey</li>
+    <li>Bot <code>POST /api/v1/invoice</code> call kore</li>
+    <li>Bot UID + amount dekhaay</li>
+    <li>Customer Binance theke UID te pay kore TX/Order ID dey</li>
+    <li>Bot <code>POST /api/v1/verify</code> call kore</li>
+    <li>PayHub Binance API diye check kore</li>
+    <li>PAID hole bot webhook paye + nijer DB te balance add kore</li>
+  </ol>
+
+  <h2>2. Create invoice</h2>
+<pre>POST {{ base }}/api/v1/invoice
+Header: X-API-Key: pk_live_xxxx
+{
+  "telegram_id": "123456789",
+  "amount": "10",
+  "currency": "USDT"
+}</pre>
+<pre>{
+  "ok": true,
+  "invoice_id": "INV...",
+  "amount": "10",
+  "currency": "USDT",
+  "uid": "1121505073",
+  "status": "PENDING"
+}</pre>
+
+  <h2>3. Verify TX / Order ID</h2>
+<pre>POST {{ base }}/api/v1/verify
+Header: X-API-Key: pk_live_xxxx
+{
+  "invoice_id": "INV...",
+  "txid": "45083... or M_P_..."
+}</pre>
+<pre>{
+  "ok": true,
+  "status": "PAID",
+  "txid": "M_P_...",
+  "amount": "10",
+  "network": "BINANCE_PAY"
+}</pre>
+
+  <h2>4. Webhook (auto verify)</h2>
+  <p>Dashboard e bot er webhook URL set korle PayHub POST korbe:</p>
+<pre>POST https://your-bot-host/webhook
+Header: X-Webhook-Secret: whsec_xxxx
+{
+  "event": "PAYMENT_PAID",
+  "invoice_id": "INV...",
+  "telegram_id": "123456789",
+  "amount": "10",
+  "currency": "USDT",
+  "txid": "M_P_...",
+  "status": "PAID"
+}</pre>
+  <p>Admin dashboard theke manual credit:</p>
+<pre>{
+  "event": "BALANCE_CREDIT",
+  "telegram_id": "123456789",
+  "amount": "5",
+  "currency": "USDT",
+  "note": "manual"
+}</pre>
+
+  <h2>5. Bot code example</h2>
+<pre>import aiohttp, os
+BASE=os.getenv("PAYMENT_BASE_URL")
+KEY=os.getenv("PAYMENT_API_KEY")
+
+async def create_invoice(uid, amount):
+    async with aiohttp.ClientSession() as s:
+        r = await s.post(f"{BASE}/api/v1/invoice",
+            headers={"X-API-Key": KEY},
+            json={"telegram_id": str(uid), "amount": str(amount)})
+        return await r.json()
+
+async def verify(invoice_id, txid):
+    async with aiohttp.ClientSession() as s:
+        r = await s.post(f"{BASE}/api/v1/verify",
+            headers={"X-API-Key": KEY},
+            json={"invoice_id": invoice_id, "txid": txid})
+        return await r.json()
+</pre>
+</div>
+</body></html>
