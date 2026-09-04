@@ -1,1 +1,0 @@
-# PayHub payment dashboard
