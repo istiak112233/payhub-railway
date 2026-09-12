@@ -1,104 +1,352 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PayHub API Docs</title>
-<style>
-body{font-family:Inter,system-ui,sans-serif;background:#0b1220;color:#e8eef8;margin:0}
-.wrap{max-width:860px;margin:0 auto;padding:24px}
-a{color:#93c5fd} code,pre{background:#121a2b;padding:12px;border-radius:10px;display:block;overflow:auto;white-space:pre-wrap}
-h1,h2{margin-top:28px}
-</style></head>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PayHub API Docs</title>
+  <style>
+    body{font-family:Inter,system-ui,sans-serif;background:#0b1220;color:#e8eef8;margin:0;line-height:1.6}
+    .wrap{max-width:920px;margin:0 auto;padding:24px}
+    a{color:#93c5fd}
+    code,pre{background:#121a2b;padding:12px;border-radius:10px;display:block;overflow:auto;white-space:pre-wrap}
+    h1,h2{margin-top:28px}
+    h3{margin-top:22px}
+    .note{background:#111827;border:1px solid #24324a;padding:14px;border-radius:12px}
+    ul,ol{padding-left:22px}
+  </style>
+</head>
 <body>
 <div class="wrap">
   <p><a href="/">← Dashboard</a></p>
-  <h1>PayHub API Documentation</h1>
-  <p>Bot .env e shudhu 3 ta jinish thakbe:</p>
+  <h1>Premium Hub PayHub API Documentation</h1>
+  <p>Direct Pay + Wallet Topup + Automatic Payment Confirmation</p>
+
+  <h2>1. Configuration</h2>
+  <p>The bot expects these three PayHub settings:</p>
 <pre>PAYMENT_BASE_URL={{ base }}
 PAYMENT_API_KEY=pk_live_xxxx
 PAYMENT_WEBHOOK_SECRET=whsec_xxxx</pre>
 
-  <h2>1. Payment flow</h2>
-  <ol>
-    <li>Customer bot e amount dey</li>
-    <li>Bot <code>POST /api/v1/invoice</code> call kore</li>
-    <li>Bot UID + amount dekhaay</li>
-    <li>Customer Binance theke UID te pay kore TX/Order ID dey</li>
-    <li>Bot <code>POST /api/v1/verify</code> call kore</li>
-    <li>PayHub Binance API diye check kore</li>
-    <li>PAID hole bot webhook paye + nijer DB te balance add kore</li>
-  </ol>
+  <p>The bot sends the API key using:</p>
+<pre>X-API-Key: pk_live_xxxx
+Content-Type: application/json</pre>
 
-  <h2>2. Create invoice</h2>
-<pre>POST {{ base }}/api/v1/invoice
-Header: X-API-Key: pk_live_xxxx
-{
+  <h2>2. Create Invoice API</h2>
+<pre>POST {{ base }}/api/v1/invoice</pre>
+
+  <h3>Headers</h3>
+<pre>X-API-Key: YOUR_PAYMENT_API_KEY
+Content-Type: application/json</pre>
+
+  <h3>Request</h3>
+<pre>{
   "telegram_id": "123456789",
-  "amount": "10",
+  "amount": "10.5",
   "currency": "USDT"
 }</pre>
+
+  <h3>Recommended response</h3>
 <pre>{
   "ok": true,
-  "invoice_id": "INV...",
-  "amount": "10",
+  "invoice_id": "INV-ABC123",
+  "uid": "123456789",
+  "amount": "10.5",
   "currency": "USDT",
-  "uid": "1121505073",
   "status": "PENDING"
 }</pre>
 
-  <h2>3. Verify TX / Order ID</h2>
-<pre>POST {{ base }}/api/v1/verify
-Header: X-API-Key: pk_live_xxxx
-{
-  "invoice_id": "INV...",
-  "txid": "45083... or M_P_..."
+  <p>Accepted invoice ID aliases:</p>
+<pre>invoice_id
+invoiceId
+invoice_no</pre>
+
+  <p>Accepted UID aliases:</p>
+<pre>uid
+binance_uid
+binanceUid
+pay_uid
+payment_uid
+wallet_id
+walletId</pre>
+
+  <h2>3. Verify Payment API</h2>
+  <p>This is used when the customer sends the Binance TX / Order ID to the Telegram bot.</p>
+
+<pre>POST {{ base }}/api/v1/verify</pre>
+
+  <h3>Headers</h3>
+<pre>X-API-Key: YOUR_PAYMENT_API_KEY
+Content-Type: application/json</pre>
+
+  <p>The bot may try the entered ID using these field conventions.</p>
+
+  <h3>Attempt 1 — preferred</h3>
+<pre>{
+  "invoice_id": "INV-ABC123",
+  "order_id": "P_ABC123456"
 }</pre>
+
+  <h3>Attempt 2</h3>
+<pre>{
+  "invoice_id": "INV-ABC123",
+  "txid": "P_ABC123456"
+}</pre>
+
+  <h3>Attempt 3</h3>
+<pre>{
+  "invoice_id": "INV-ABC123",
+  "tx_id": "P_ABC123456"
+}</pre>
+
+  <h3>Successful verification response</h3>
 <pre>{
   "ok": true,
+  "invoice_id": "INV-ABC123",
   "status": "PAID",
-  "txid": "M_P_...",
-  "amount": "10",
+  "txid": "P_ABC123456",
   "network": "BINANCE_PAY"
 }</pre>
 
-  <h2>4. Webhook (auto verify)</h2>
-  <p>Dashboard e bot er webhook URL set korle PayHub POST korbe:</p>
-<pre>POST https://your-bot-host/webhook
-Header: X-Webhook-Secret: whsec_xxxx
-{
+  <p>Successful statuses:</p>
+<pre>PAID
+SUCCESS
+COMPLETED
+CONFIRMED</pre>
+
+  <p>The bot can also recognize:</p>
+<pre>{ "paid": true }
+{ "verified": true }
+{ "confirmed": true }</pre>
+
+  <p>These states must not be treated as paid:</p>
+<pre>FAILED
+INVALID
+MISMATCH
+WRONG_INVOICE
+NOT_FOUND
+PENDING
+UNPAID
+EXPIRED
+CANCELLED
+CANCELED</pre>
+
+  <h2>4. Automatic Webhook</h2>
+  <p>Recommended bot webhook URL:</p>
+<pre>https://YOUR-BOT-DOMAIN/api/v1/payments/webhook</pre>
+
+  <p>The current bot also accepts:</p>
+<pre>POST /webhook
+POST /api/v1/payments/webhook
+POST /ipn</pre>
+
+  <h3>Webhook headers</h3>
+<pre>X-Webhook-Secret: YOUR_PAYMENT_WEBHOOK_SECRET
+Content-Type: application/json</pre>
+
+  <p>If the secret is wrong, the bot returns:</p>
+<pre>401 invalid-secret</pre>
+
+  <h2>5. PAYMENT_PAID Webhook</h2>
+  <h3>Recommended payload</h3>
+<pre>{
   "event": "PAYMENT_PAID",
-  "invoice_id": "INV...",
-  "telegram_id": "123456789",
-  "amount": "10",
-  "currency": "USDT",
-  "txid": "M_P_...",
-  "status": "PAID"
+  "invoice_id": "INV-ABC123",
+  "status": "PAID",
+  "txid": "P_ABC123456",
+  "amount": "10.5",
+  "currency": "USDT"
 }</pre>
-  <p>Admin dashboard theke manual credit:</p>
+
+  <p>Transaction ID aliases:</p>
+<pre>txid
+order_id
+tx_id</pre>
+
+  <h3>Success response</h3>
+<pre>HTTP 200
+
+ok</pre>
+
+  <p>Other possible responses:</p>
+<pre>ignored
+unknown-invoice
+not-paid
+duplicate</pre>
+
+  <h2>6. Direct Pay Flow</h2>
+<pre>Customer selects product
+        ↓
+Bot creates local order
+Status = PENDING_PAYMENT
+        ↓
+Bot → PayHub
+POST /api/v1/invoice
+        ↓
+PayHub returns
+invoice_id + Binance UID
+        ↓
+Bot saves invoice
+payment_kind = order
+reference_id = ORD-XXXXXXXXXX
+        ↓
+Customer sends exact payment
+        ↓
+Payment can be confirmed by:
+A) PayHub webhook
+or
+B) Customer submits Binance TX / Order ID
+        ↓
+Bot verifies payment
+        ↓
+Invoice marked PAID
+        ↓
+Order marked PAID
+        ↓
+Product stock is reserved
+        ↓
+Product delivered automatically
+        ↓
+Order = COMPLETED</pre>
+
+  <p>Example:</p>
+<pre>payment_kind = order
+reference_id = ORD-91A2B3C4D5</pre>
+
+  <h2>7. Wallet Topup Flow</h2>
+<pre>Customer selects Topup Wallet
+        ↓
+Customer enters amount
+        ↓
+Bot → PayHub
+POST /api/v1/invoice
+        ↓
+Bot saves invoice
+payment_kind = deposit
+reference_id = DEP-XXXXXXXXXX
+        ↓
+Customer sends exact payment
+        ↓
+Webhook or TX/Order-ID verification
+        ↓
+Invoice marked PAID
+        ↓
+Wallet credited automatically
+        ↓
+Customer sees new wallet balance</pre>
+
+  <p>Example:</p>
+<pre>payment_kind = deposit
+reference_id = DEP-91A2B3C4D5</pre>
+
+  <h2>8. Idempotency / Duplicate Protection</h2>
+  <p>The bot stores processed payment markers using:</p>
+<pre>invoice_id + transaction/order ID</pre>
+
+  <ul>
+    <li>Repeated webhook delivery must not credit the wallet twice.</li>
+    <li>Repeated TX verification must not complete the same purchase twice.</li>
+    <li>PayHub may safely retry a webhook when network delivery is uncertain.</li>
+    <li>PayHub should always send a stable unique transaction/order ID.</li>
+  </ul>
+
+  <h2>9. Optional BALANCE_CREDIT Webhook</h2>
 <pre>{
   "event": "BALANCE_CREDIT",
   "telegram_id": "123456789",
   "amount": "5",
   "currency": "USDT",
-  "note": "manual"
+  "event_id": "credit-0001",
+  "note": "Manual credit"
 }</pre>
 
-  <h2>5. Bot code example</h2>
-<pre>import aiohttp, os
-BASE=os.getenv("PAYMENT_BASE_URL")
-KEY=os.getenv("PAYMENT_API_KEY")
+  <p>Recommended unique identifier:</p>
+<pre>event_id</pre>
 
-async def create_invoice(uid, amount):
-    async with aiohttp.ClientSession() as s:
-        r = await s.post(f"{BASE}/api/v1/invoice",
-            headers={"X-API-Key": KEY},
-            json={"telegram_id": str(uid), "amount": str(amount)})
-        return await r.json()
+  <p>The bot can also use:</p>
+<pre>reference_id
+txid</pre>
 
-async def verify(invoice_id, txid):
-    async with aiohttp.ClientSession() as s:
-        r = await s.post(f"{BASE}/api/v1/verify",
-            headers={"X-API-Key": KEY},
-            json={"invoice_id": invoice_id, "txid": txid})
-        return await r.json()
-</pre>
+  <p>Success response:</p>
+<pre>credited</pre>
+
+  <p>Duplicate event:</p>
+<pre>duplicate</pre>
+
+  <h2>10. HTTP Error Handling</h2>
+  <p>For outbound PayHub APIs, any HTTP status &gt;= 400 is considered an API error.</p>
+
+  <p>The bot looks for an error message in:</p>
+<pre>message
+error
+detail</pre>
+
+  <p>Recommended error response:</p>
+<pre>{
+  "ok": false,
+  "error": "Payment not found"
+}</pre>
+
+  <h2>11. Security Requirements</h2>
+  <ol>
+    <li>Always use HTTPS for PAYMENT_BASE_URL.</li>
+    <li>Keep PAYMENT_API_KEY private.</li>
+    <li>Keep PAYMENT_WEBHOOK_SECRET private.</li>
+    <li>PayHub must include X-Webhook-Secret on every webhook.</li>
+    <li>Never expose the API key or webhook secret to Telegram customers.</li>
+    <li>Use a unique PayHub transaction/order ID for every payment.</li>
+    <li>Do not treat PENDING or UNPAID as successful.</li>
+    <li>Retry webhook requests when the bot does not return HTTP 200.</li>
+  </ol>
+
+  <div class="note">
+    Current V25.5 authentication uses a shared webhook-secret header, not an HMAC body signature.
+  </div>
+
+  <h2>12. cURL Examples</h2>
+
+  <h3>Create invoice</h3>
+<pre>curl -X POST "{{ base }}/api/v1/invoice" \
+  -H "X-API-Key: pk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "telegram_id":"123456789",
+    "amount":"10",
+    "currency":"USDT"
+  }'</pre>
+
+  <h3>Verify Binance order</h3>
+<pre>curl -X POST "{{ base }}/api/v1/verify" \
+  -H "X-API-Key: pk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "invoice_id":"INV-ABC123",
+    "order_id":"P_ABC123456"
+  }'</pre>
+
+  <h3>Send automatic payment webhook</h3>
+<pre>curl -X POST "https://YOUR-BOT-DOMAIN/api/v1/payments/webhook" \
+  -H "X-Webhook-Secret: whsec_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event":"PAYMENT_PAID",
+    "invoice_id":"INV-ABC123",
+    "status":"PAID",
+    "txid":"P_ABC123456"
+  }'</pre>
+
+  <h2>13. Minimum PayHub Contract</h2>
+<pre>POST /api/v1/invoice
+POST /api/v1/verify
+POST → Premium Hub webhook when payment becomes PAID</pre>
+
+  <p>Required credentials:</p>
+<pre>PAYMENT_BASE_URL
+PAYMENT_API_KEY
+PAYMENT_WEBHOOK_SECRET</pre>
+
+  <p>This single payment contract handles both:</p>
+<pre>Direct Pay → automatic product delivery
+Wallet Topup → automatic wallet credit</pre>
 </div>
-</body></html>
+</body>
+</html>
